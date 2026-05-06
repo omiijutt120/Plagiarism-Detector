@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% block title %}Analysis Report · PlagScan{% endblock %}
+{% block page_title %}Similarity Report{% endblock %}
+
+{% block head %}
+<style>
+  .gauge-svg circle { transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Top summary bar ─────────────────────────────────────────── -->
+<div class="card mb-6" style="border-color:{% if r.risk_key=='critical' %}rgba(255,59,92,.4){% elif r.risk_key=='high' %}rgba(245,158,11,.3){% else %}var(--border){% endif %}">
+  <div class="card-body" style="padding:24px 28px">
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:20px">
+
+      <!-- SVG Gauge -->
+      <div style="position:relative;width:100px;height:100px;flex-shrink:0">
+        <svg viewBox="0 0 100 100" width="100" height="100">
+          <circle cx="50" cy="50" r="40" fill="none" stroke="var(--surface2)" stroke-width="10"/>
+          <circle cx="50" cy="50" r="40" fill="none"
+            stroke="{% if r.risk_key=='critical' %}var(--red){% elif r.risk_key=='high' %}var(--amber){% elif r.risk_key=='medium' %}var(--blue){% else %}var(--green){% endif %}"
+            stroke-width="10" stroke-linecap="round"
+            stroke-dasharray="{{ (r.overall_pct / 100 * 251.2)|round(1) }} 251.2"
+            stroke-dashoffset="0"
+            transform="rotate(-90 50 50)"
+            class="gauge-svg"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;
+                    align-items:center;justify-content:center">
+          <div style="font-family:var(--font-h);font-size:1.2rem;font-weight:800;
+                      color:{% if r.risk_key=='critical' %}var(--red){% elif r.risk_key=='high' %}var(--amber){% elif r.risk_key=='medium' %}var(--blue){% else %}var(--green){% endif %}">
+            {{ r.overall_pct }}%
+          </div>
+        </div>
+      </div>
+
+      <!-- Labels -->
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <span class="risk risk-{{ r.risk_key }}" style="font-size:.8rem;padding:5px 12px">
+            ⚠ {{ r.risk_label }}
+          </span>
+          <span class="mono text-dim" style="font-size:.72rem">RISK LEVEL</span>
+        </div>
+        <div style="font-family:var(--font-h);font-size:1.3rem;font-weight:800;margin-bottom:2px">
+          {{ r.title1 }}
+          <span class="text-dim" style="font-size:.9rem;font-weight:400"> vs </span>
+          {{ r.title2 }}
+        </div>
+        <div class="mono text-dim" style="font-size:.72rem">
+          {{ r.words1 }} words · {{ r.sents1 }} sentences &nbsp;|&nbsp;
+          {{ r.words2 }} words · {{ r.sents2 }} sentences
+        </div>
+      </div>
+
+      <!-- Action -->
+      <a href="{{ url_for('check') }}" class="btn btn-ghost btn-sm">
+        <i class="fas fa-redo"></i> New Check
+      </a>
+    </div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start">
+
+  <!-- ── Left: metrics ─────────────────────────────────────────── -->
+  <div style="display:flex;flex-direction:column;gap:16px">
+
+    <div class="card">
+      <div class="card-header"><i class="fas fa-chart-bar text-muted" style="font-size:.8rem"></i> Metric Breakdown</div>
+      <div class="card-body">
+        {% set metrics = [
+          ('TF-IDF Cosine',   r.cosine_pct,  '#3B82F6'),
+          ('Jaccard Index',   r.jaccard_pct, '#8B5CF6'),
+          ('3-gram Match',    r.ngram3_pct,  '#F59E0B'),
+          ('2-gram Match',    r.ngram2_pct,  '#FF3B5C'),
+        ] %}
+        {% for name, val, color in metrics %}
+        <div class="metric-bar">
+          <div class="metric-label">
+            <span>{{ name }}</span>
+            <span>{{ val }}%</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:{{ val }}%;background:{{ color }}"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Matched phrases -->
+    {% if r.matched_phrases %}
+    <div class="card">
+      <div class="card-header text-red">
+        <i class="fas fa-fingerprint" style="font-size:.8rem"></i>
+        Flagged Phrases ({{ r.matched_phrases|length }})
+      </div>
+      <div class="card-body">
+        {% for phrase in r.matched_phrases %}
+        <span class="phrase-chip">{{ phrase }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Summary card -->
+    <div class="card" style="border-color:var(--border2)">
+      <div class="card-body" style="padding:16px 20px">
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:10px;
+                    font-family:var(--font-m);text-transform:uppercase;letter-spacing:.08em">
+          Interpretation
+        </div>
+        {% if r.risk_key == 'critical' %}
+        <p style="font-size:.84rem;color:#FDA4AF;line-height:1.6">
+          Extremely high overlap detected. Strong evidence of direct copying or minimal paraphrasing.
+          Immediate review recommended.
+        </p>
+        {% elif r.risk_key == 'high' %}
+        <p style="font-size:.84rem;color:var(--amber);line-height:1.6">
+          Significant similarity found. Multiple matching phrases and sentences detected.
+          Manual review advised.
+        </p>
+        {% elif r.risk_key == 'medium' %}
+        <p style="font-size:.84rem;color:var(--blue);line-height:1.6">
+          Moderate similarity. Could indicate shared topic, paraphrasing, or partial copying.
+          Context review suggested.
+        </p>
+        {% else %}
+        <p style="font-size:.84rem;color:var(--green);line-height:1.6">
+          Low similarity. Documents appear to be substantially original relative to each other.
+        </p>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Right: evidence ───────────────────────────────────────── -->
+  <div style="display:flex;flex-direction:column;gap:16px">
+
+    <!-- Sentence matches -->
+    {% if r.sentence_matches %}
+    <div class="card">
+      <div class="card-header text-red">
+        <i class="fas fa-equals" style="font-size:.8rem"></i>
+        Matching Sentence Pairs ({{ r.sentence_matches|length }})
+      </div>
+      <div style="max-height:300px;overflow-y:auto">
+        {% for m in r.sentence_matches %}
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span class="mono text-dim" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">
+              Similarity
+            </span>
+            <span style="font-family:var(--font-h);font-size:.85rem;font-weight:700;
+                         color:{% if m.ratio>=80 %}var(--red){% elif m.ratio>=60 %}var(--amber){% else %}var(--blue){% endif %}">
+              {{ m.ratio }}%
+            </span>
+          </div>
+          <div style="background:rgba(59,130,246,.08);border-left:3px solid var(--blue);
+                      padding:7px 11px;border-radius:0 6px 6px 0;font-family:var(--font-m);
+                      font-size:.79rem;line-height:1.6;color:#93C5FD;margin-bottom:7px">
+            {{ m.sent1 }}
+          </div>
+          <div style="background:rgba(255,59,92,.08);border-left:3px solid var(--red);
+                      padding:7px 11px;border-radius:0 6px 6px 0;font-family:var(--font-m);
+                      font-size:.79rem;line-height:1.6;color:#FDA4AF">
+            {{ m.sent2 }}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Highlighted documents -->
+    <div class="grid-2" style="gap:16px">
+
+      <!-- Doc A highlighted -->
+      <div class="card">
+        <div class="card-header" style="font-size:.82rem">
+          <i class="fas fa-file-alt" style="color:var(--blue)"></i>
+          {{ r.title1 }}
+          <span class="mono text-dim" style="margin-left:auto;font-size:.68rem">
+            {{ r.flagged1 }} flagged
+          </span>
+        </div>
+        <div class="card-body" style="padding:14px 16px;max-height:300px;overflow-y:auto">
+          {% if r.highlighted1 %}
+            {% for s in r.highlighted1 %}
+              {% if s.flagged %}
+              <span class="sent-flagged" title="Match: {{ s.score }}%">{{ s.text }}</span>
+              {% else %}
+              <span class="sent-clean">{{ s.text }}</span>
+              {% endif %}
+            {% endfor %}
+          {% else %}
+          <span class="text-dim" style="font-size:.8rem">No sentence data</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Doc B highlighted -->
+      <div class="card">
+        <div class="card-header" style="font-size:.82rem">
+          <i class="fas fa-file-alt" style="color:var(--amber)"></i>
+          {{ r.title2 }}
+          <span class="mono text-dim" style="margin-left:auto;font-size:.68rem">
+            {{ r.flagged2 }} flagged
+          </span>
+        </div>
+        <div class="card-body" style="padding:14px 16px;max-height:300px;overflow-y:auto">
+          {% if r.highlighted2 %}
+            {% for s in r.highlighted2 %}
+              {% if s.flagged %}
+              <span class="sent-flagged" title="Match: {{ s.score }}%">{{ s.text }}</span>
+              {% else %}
+              <span class="sent-clean">{{ s.text }}</span>
+              {% endif %}
+            {% endfor %}
+          {% else %}
+          <span class="text-dim" style="font-size:.8rem">No sentence data</span>
+          {% endif %}
+        </div>
+      </div>
+
+    </div><!-- /grid-2 -->
+
+    <!-- Legend -->
+    <div style="display:flex;gap:16px;align-items:center;padding:10px 14px;
+                background:var(--surface);border:1px solid var(--border);border-radius:8px">
+      <span class="mono" style="font-size:.72rem;color:var(--dim)">LEGEND:</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;font-size:.78rem;color:#FDA4AF">
+        <span style="width:12px;height:3px;background:var(--red);border-radius:2px;display:inline-block"></span>
+        Flagged / Suspicious
+      </span>
+      <span style="display:inline-flex;align-items:center;gap:6px;font-size:.78rem;color:var(--muted)">
+        <span style="width:12px;height:3px;background:var(--dim);border-radius:2px;display:inline-block"></span>
+        Original / Clean
+      </span>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

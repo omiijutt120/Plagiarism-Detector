@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Document Vault · PlagScan{% endblock %}
+{% block page_title %}Document Vault{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start">
+
+  <!-- Add form -->
+  <div class="card">
+    <div class="card-header"><i class="fas fa-plus-circle" style="color:var(--green)"></i> Add to Vault</div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('vault') }}">
+        <div class="form-group">
+          <label class="form-label">Document Title *</label>
+          <input type="text" name="title" class="form-control"
+                 placeholder="Introduction to OOP" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Author</label>
+          <input type="text" name="author" class="form-control" placeholder="Ali Khan">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Subject / Course</label>
+          <input type="text" name="subject" class="form-control" placeholder="CS-401">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Content *</label>
+          <textarea name="content" class="form-control" rows="8"
+                    placeholder="Paste the document content here..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-red" style="width:100%;justify-content:center">
+          <i class="fas fa-database"></i> Add to Vault
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Vault table -->
+  <div class="card">
+    <div class="card-header" style="justify-content:space-between">
+      <span><i class="fas fa-database text-muted" style="font-size:.8rem"></i>
+        Stored Documents
+        <span style="margin-left:8px;background:rgba(255,59,92,.15);color:var(--red);
+                     font-family:var(--font-m);font-size:.68rem;padding:2px 8px;border-radius:4px">
+          {{ docs|length }}
+        </span>
+      </span>
+      <!-- Search -->
+      <form action="{{ url_for('vault') }}" method="GET" style="display:flex;gap:8px">
+        <input type="text" name="q" value="{{ search }}" class="form-control"
+               placeholder="Search…" style="width:150px;padding:6px 11px;font-size:.82rem">
+        <button class="btn btn-ghost btn-sm" type="submit"><i class="fas fa-search"></i></button>
+        {% if search %}
+        <a href="{{ url_for('vault') }}" class="btn btn-ghost btn-sm">✕</a>
+        {% endif %}
+      </form>
+    </div>
+
+    {% if docs %}
+    <table class="table">
+      <thead>
+        <tr><th>Title</th><th>Author</th><th>Subject</th><th>Words</th><th>Added</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for d in docs %}
+        <tr>
+          <td>
+            <div style="font-weight:600;font-size:.86rem">{{ d['title'] }}</div>
+            <div class="mono text-dim" style="font-size:.72rem">
+              {{ d['content'][:60] }}…
+            </div>
+          </td>
+          <td style="font-size:.84rem">{{ d['author'] }}</td>
+          <td>
+            <span style="background:rgba(59,130,246,.12);color:var(--blue);
+                         font-family:var(--font-m);font-size:.72rem;
+                         padding:3px 8px;border-radius:4px">
+              {{ d['subject'] or '—' }}
+            </span>
+          </td>
+          <td class="mono text-muted" style="font-size:.8rem">{{ d['word_count'] }}</td>
+          <td class="mono text-dim" style="font-size:.72rem">{{ d['submitted'][:10] }}</td>
+          <td>
+            <a href="{{ url_for('delete_vault', doc_id=d['id']) }}"
+               class="btn btn-ghost btn-sm"
+               onclick="return confirm('Remove from vault?')"
+               style="color:var(--red);border-color:rgba(255,59,92,.2)">
+              <i class="fas fa-trash" style="font-size:.75rem"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="text-align:center;padding:50px 20px;color:var(--muted)">
+      <i class="fas fa-database" style="font-size:2rem;opacity:.2;margin-bottom:14px;display:block"></i>
+      {% if search %}No results for "{{ search }}"{% else %}Vault is empty. Add documents to get started.{% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

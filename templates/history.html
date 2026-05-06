@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Check History · PlagScan{% endblock %}
+{% block page_title %}Check History{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <i class="fas fa-clock-rotate-left text-muted" style="font-size:.8rem"></i>
+    All Past Checks
+    <span style="margin-left:8px;background:rgba(255,59,92,.15);color:var(--red);
+                 font-family:var(--font-m);font-size:.68rem;padding:2px 8px;border-radius:4px">
+      {{ checks|length }}
+    </span>
+  </div>
+
+  {% if checks %}
+  <table class="table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Document A</th>
+        <th>Document B</th>
+        <th>Overall</th>
+        <th>Cosine</th>
+        <th>Jaccard</th>
+        <th>N-gram</th>
+        <th>Risk</th>
+        <th>Matches</th>
+        <th>Date</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in checks %}
+      <tr>
+        <td class="mono text-dim" style="font-size:.75rem">{{ loop.index }}</td>
+        <td>
+          <div style="font-size:.84rem;font-weight:600">{{ c['doc1_title'] }}</div>
+          <div class="mono text-dim" style="font-size:.7rem">{{ (c['doc1_snippet'] or '')[:40] }}…</div>
+        </td>
+        <td>
+          <div style="font-size:.84rem;font-weight:600">{{ c['doc2_title'] }}</div>
+          <div class="mono text-dim" style="font-size:.7rem">{{ (c['doc2_snippet'] or '')[:40] }}…</div>
+        </td>
+        <td>
+          <span style="font-family:var(--font-h);font-weight:800;font-size:.95rem;
+                       color:{% if c['overall_pct']>=70 %}var(--red){% elif c['overall_pct']>=45 %}var(--amber){% else %}var(--green){% endif %}">
+            {{ c['overall_pct'] }}%
+          </span>
+        </td>
+        <td class="mono text-muted" style="font-size:.8rem">{{ c['cosine_pct'] }}%</td>
+        <td class="mono text-muted" style="font-size:.8rem">{{ c['jaccard_pct'] }}%</td>
+        <td class="mono text-muted" style="font-size:.8rem">{{ c['ngram_pct'] }}%</td>
+        <td>
+          <span class="risk risk-{{ c['risk_level']|lower }}">{{ c['risk_level'] }}</span>
+        </td>
+        <td class="mono text-muted" style="font-size:.8rem">{{ c['matched_count'] }}</td>
+        <td class="mono text-dim" style="font-size:.72rem">{{ c['checked_at'][:10] }}</td>
+        <td>
+          <a href="{{ url_for('delete_check', check_id=c['id']) }}"
+             class="btn btn-ghost btn-sm"
+             onclick="return confirm('Delete this record?')"
+             style="color:var(--red);border-color:rgba(255,59,92,.2)">
+            <i class="fas fa-trash" style="font-size:.75rem"></i>
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="text-align:center;padding:60px 20px;color:var(--muted)">
+    <i class="fas fa-clock-rotate-left" style="font-size:2.5rem;opacity:.15;margin-bottom:16px;display:block"></i>
+    No checks recorded yet.
+    <a href="{{ url_for('check') }}" style="color:var(--red)">Run your first check →</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

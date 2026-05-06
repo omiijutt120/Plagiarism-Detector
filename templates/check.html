@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Run Check · PlagScan{% endblock %}
+{% block page_title %}Run Plagiarism Check{% endblock %}
+
+{% block content %}
+
+<!-- Tab switcher -->
+<div style="display:flex;gap:4px;margin-bottom:20px;background:var(--surface);
+            border:1px solid var(--border);border-radius:10px;padding:5px;
+            width:fit-content">
+  <button id="tab-direct" onclick="switchTab('direct')"
+          style="padding:8px 20px;border-radius:7px;border:none;cursor:pointer;
+                 font-family:var(--font-h);font-size:.85rem;font-weight:700;
+                 background:var(--red);color:#fff;transition:all .15s">
+    <i class="fas fa-code-compare"></i> Direct Compare
+  </button>
+  <button id="tab-vault" onclick="switchTab('vault')"
+          style="padding:8px 20px;border-radius:7px;border:none;cursor:pointer;
+                 font-family:var(--font-h);font-size:.85rem;font-weight:700;
+                 background:transparent;color:var(--muted);transition:all .15s">
+    <i class="fas fa-database"></i> Compare vs Vault
+  </button>
+</div>
+
+<!-- ── DIRECT MODE ─────────────────────────────────────────────── -->
+<div id="form-direct">
+<form method="POST" action="{{ url_for('check') }}">
+  <input type="hidden" name="mode" value="direct">
+  <div class="grid-2" style="gap:20px;margin-bottom:20px">
+
+    <div class="card">
+      <div class="card-header" style="color:var(--blue)">
+        <i class="fas fa-file-alt"></i> Document A
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Title (optional)</label>
+          <input type="text" name="title1" class="form-control" placeholder="e.g. Student Assignment #1">
+        </div>
+        <div class="form-group mb-0">
+          <label class="form-label">Paste Text *</label>
+          <textarea name="text1" class="form-control" rows="10"
+                    placeholder="Paste the first document here..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" style="color:var(--amber)">
+        <i class="fas fa-file-alt"></i> Document B
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Title (optional)</label>
+          <input type="text" name="title2" class="form-control" placeholder="e.g. Student Assignment #2">
+        </div>
+        <div class="form-group mb-0">
+          <label class="form-label">Paste Text *</label>
+          <textarea name="text2" class="form-control" rows="10"
+                    placeholder="Paste the second document here..."></textarea>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <button type="submit" class="btn btn-red" style="font-size:.95rem;padding:11px 28px">
+    <i class="fas fa-magnifying-glass"></i> Analyze Documents
+  </button>
+</form>
+</div>
+
+<!-- ── VAULT MODE ──────────────────────────────────────────────── -->
+<div id="form-vault" style="display:none">
+<form method="POST" action="{{ url_for('check') }}">
+  <input type="hidden" name="mode" value="vault">
+  <div class="grid-2" style="gap:20px;margin-bottom:20px">
+
+    <div class="card">
+      <div class="card-header" style="color:var(--red)">
+        <i class="fas fa-keyboard"></i> Submitted Text
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Label</label>
+          <input type="text" name="title1" class="form-control" placeholder="e.g. Sara Ahmed – Lab Report">
+        </div>
+        <div class="form-group mb-0">
+          <label class="form-label">Paste Text *</label>
+          <textarea name="text1" class="form-control" rows="10"
+                    placeholder="Paste the student's submitted text here..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" style="color:var(--green)">
+        <i class="fas fa-database"></i> Compare Against Vault Document
+      </div>
+      <div class="card-body">
+        <div class="form-group mb-0">
+          <label class="form-label">Select from Vault</label>
+          {% if vault_docs %}
+          <select name="vault_id" class="form-select" style="height:auto">
+            <option value="">— choose a document —</option>
+            {% for d in vault_docs %}
+            <option value="{{ d['id'] }}">{{ d['title'] }} · {{ d['author'] }}</option>
+            {% endfor %}
+          </select>
+          <div style="margin-top:14px;padding:12px;background:var(--surface2);
+                      border-radius:8px;border:1px solid var(--border)">
+            <div class="text-muted" style="font-size:.78rem;margin-bottom:6px">
+              <i class="fas fa-circle-info"></i> Vault has {{ vault_docs|length }} document(s)
+            </div>
+            <a href="{{ url_for('vault') }}" style="color:var(--red);font-size:.8rem">
+              + Add documents to vault →
+            </a>
+          </div>
+          {% else %}
+          <div style="padding:30px;text-align:center;color:var(--muted);
+                      background:var(--surface2);border-radius:8px">
+            Vault is empty.
+            <a href="{{ url_for('vault') }}" style="color:var(--red)">Add documents →</a>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <button type="submit" class="btn btn-red" style="font-size:.95rem;padding:11px 28px">
+    <i class="fas fa-magnifying-glass"></i> Check Against Vault
+  </button>
+</form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function switchTab(tab) {
+  const isDirect = tab === 'direct';
+  document.getElementById('form-direct').style.display = isDirect ? '' : 'none';
+  document.getElementById('form-vault').style.display  = isDirect ? 'none' : '';
+
+  const on  = 'background:var(--red);color:#fff';
+  const off = 'background:transparent;color:var(--muted)';
+
+  document.getElementById('tab-direct').style.cssText += isDirect ? on : off;
+  document.getElementById('tab-vault').style.cssText  += isDirect ? off : on;
+
+  // Re-apply properly
+  if (isDirect) {
+    document.getElementById('tab-direct').style.background = 'var(--red)';
+    document.getElementById('tab-direct').style.color = '#fff';
+    document.getElementById('tab-vault').style.background = 'transparent';
+    document.getElementById('tab-vault').style.color = 'var(--muted)';
+  } else {
+    document.getElementById('tab-vault').style.background = 'var(--red)';
+    document.getElementById('tab-vault').style.color = '#fff';
+    document.getElementById('tab-direct').style.background = 'transparent';
+    document.getElementById('tab-direct').style.color = 'var(--muted)';
+  }
+}
+</script>
+{% endblock %}
